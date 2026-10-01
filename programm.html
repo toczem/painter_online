@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Programm</title>
+  <style>
+    :root{
+      --fg:#e6f0ff; --muted:#8b94a5; --accent:#3ea6ff;
+      --bg:#050913; --card:#0c1120; --border:#ffffff1f; --shadow:0 10px 24px #0007;
+    }
+    body{ margin:16px; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    a{ color:var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    #wrap{ max-width:980px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+    @media (max-width:900px){ #wrap{ grid-template-columns:1fr; } #wkGrid{ grid-template-columns:1fr !important; } }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px; box-shadow:var(--shadow); }
+    .wide{ grid-column:1 / -1; }
+    .title{ font-weight:650; margin-bottom:10px; }
+    .meta{ font-size:12px; color:var(--muted); }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+    button, select, input[type="text"], input[type="number"], input[type="time"], textarea{
+      background:#080c16; color:var(--fg); border:1px solid var(--border);
+      border-radius:10px; padding:8px 10px; font:inherit; box-sizing:border-box;
+    }
+    textarea{ width:100%; min-height:70px; resize:vertical; }
+    input[type="color"]{ width:48px; height:36px; border:1px solid var(--border); border-radius:10px; background:#080c16; padding:2px; }
+    input[type="range"]{ flex:1; accent-color:var(--accent); }
+    button{ cursor:pointer; }
+    button.primary{ background:var(--accent); color:#08111f; border-color:transparent; }
+    button.ghost{ background:transparent; }
+    button.small{ padding:6px 10px; }
+    label.check{ display:flex; gap:6px; align-items:center; color:var(--muted); }
+    .item{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px; border:1px solid var(--border); border-radius:12px; background:#0a0f1d; margin-top:8px; }
+    .item select{ flex:1; min-width:140px; }
+    .item input[type="number"]{ width:90px; }
+    .item.aktiv{ border-color:var(--accent); }
+    .status{ padding:10px; border-radius:12px; background:#0a0f1d; border:1px solid var(--border); }
+    .linkbtn{ display:inline-flex; align-items:center; justify-content:center; padding:8px 10px; border-radius:10px;
+      border:1px solid var(--border); background:#080c16; color:var(--fg); text-decoration:none; flex:1 1 auto; }
+    .linkbtn:hover{ border-color:#ffffff33; text-decoration:none; }
+  </style>
+</head>
+<body>
+<div id="wrap">
+
+  <section class="card wide">
+    <div class="title">Programm</div>
+    <div class="row" style="margin-top:0">
+      <a class="linkbtn" href="/">Painter</a>
+      <a class="linkbtn" href="/einstellungen.html">Einstellungen</a>
+    </div>
+    <div class="status meta" id="status" style="margin-top:10px">Lade…</div>
+  </section>
+
+  <!-- Laufschrift -->
+  <section class="card">
+    <div class="title">Laufschrift</div>
+    <textarea id="text" maxlength="200" placeholder="Text, der über die Matrix läuft (Umlaute gehen)"></textarea>
+    <div class="row">
+      <label class="meta">Farbe</label>
+      <input id="color" type="color" value="#ff8800">
+      <label class="check"><input id="rainbow" type="checkbox"> Regenbogen</label>
+      <label class="check"><input id="big" type="checkbox"> groß</label>
+    </div>
+    <div class="row">
+      <label class="meta">Tempo</label>
+      <input id="speed" type="range" min="20" max="200" step="5" value="60">
+      <span class="meta" id="speedVal"></span>
+    </div>
+    <div class="row">
+      <button id="textSave" class="ghost">Speichern</button>
+      <button id="textShow" class="primary">Speichern &amp; anzeigen</button>
+    </div>
+    <p class="meta" id="textMsg"></p>
+  </section>
+
+  <!-- Wecker & Timer -->
+  <section class="card wide">
+    <div class="title">Wecker &amp; Timer</div>
+    <div id="ringBox" class="status" style="display:none; border-color:#ff9f43">
+      <b id="ringText">Klingelt!</b>
+      <div class="row">
+        <button id="ringStop" class="primary">Aus</button>
+        <button id="ringSnooze" class="ghost">Schlummern (5 min)</button>
+      </div>
+    </div>
+    <div id="wkGrid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px">
+      <div>
+        <div class="meta" style="margin-bottom:6px"><b>Timer</b></div>
+        <div class="row" style="margin-top:0">
+          <button class="ghost small tq" data-s="60">1 min</button>
+          <button class="ghost small tq" data-s="180">3 min</button>
+          <button class="ghost small tq" data-s="300">5 min</button>
+          <button class="ghost small tq" data-s="600">10 min</button>
+          <button class="ghost small tq" data-s="900">15 min</button>
+          <button class="ghost small tq" data-s="1800">30 min</button>
+        </div>
+        <div class="row">
+          <input id="tMin" type="number" min="0" max="999" value="5" style="width:80px"> <span class="meta">min</span>
+          <input id="tSec" type="number" min="0" max="59" value="0" style="width:70px"> <span class="meta">s</span>
+          <button id="tStart" class="primary">Start</button>
+          <button id="tStop" class="ghost">Stopp</button>
+        </div>
+        <p class="meta" id="tInfo"></p>
+      </div>
+      <div>
+        <div class="meta" style="margin-bottom:6px"><b>Wecker</b></div>
+        <div class="row" style="margin-top:0">
+          <label class="check"><input id="aOn" type="checkbox"> an</label>
+          <input id="aTime" type="time" value="07:00">
+          <select id="aSong"></select>
+        </div>
+        <div class="row" id="aDays"></div>
+        <div class="row">
+          <label class="check"><input id="aSunrise" type="checkbox" checked> Sonnenaufgang 10 min vorher</label>
+        </div>
+        <div class="row">
+          <label class="meta">Lautstärke</label>
+          <input id="aVol" type="range" min="0" max="100" value="100">
+          <button id="aTest" class="ghost small" title="Melodie kurz anspielen">▶</button>
+        </div>
+        <div class="row">
+          <button id="aSave" class="primary">Wecker speichern</button>
+        </div>
+        <p class="meta" id="aInfo"></p>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px">
+      <span class="meta">Klingeln hört von selbst auf nach:</span>
+      <span class="meta">Wecker</span>
+      <select id="aRingMin">
+        <option value="1">1 min</option><option value="2">2 min</option><option value="3">3 min</option>
+        <option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option>
+      </select>
+      <span class="meta">Timer</span>
+      <select id="tRingS">
+        <option value="10">10 s</option><option value="30">30 s</option><option value="60">1 min</option>
+        <option value="120">2 min</option><option value="300">5 min</option><option value="600">10 min</option>
+      </select>
+      <button id="ringSave" class="ghost small">Speichern</button>
+    </div>
+  </section>
+
+  <!-- Aquarium -->
+  <section class="card">
+    <div class="title">Aquarium</div>
+    <div class="row" style="margin-top:0">
+      <button id="aqFeed" class="primary">🐟 Füttern</button>
+      <button id="aqShow" class="ghost">Aquarium anzeigen</button>
+    </div>
+    <div class="row">
+      <label class="meta">Fische</label>
+      <input id="aqFish" type="range" min="1" max="6" value="3">
+      <span class="meta" id="aqFishVal">3</span>
+    </div>
+    <div class="meta" style="margin-top:8px">Mitbewohner (abwählen, wenn es zu unruhig ist):</div>
+    <div class="row" id="aqExtras">
+      <label class="check"><input type="checkbox" data-k="shrimp"> Garnele</label>
+      <label class="check"><input type="checkbox" data-k="crab"> Krabbe</label>
+      <label class="check"><input type="checkbox" data-k="chest"> Schatztruhe</label>
+      <label class="check"><input type="checkbox" data-k="horse"> Seepferdchen</label>
+      <label class="check"><input type="checkbox" data-k="jelly"> Qualle</label>
+    </div>
+    <div class="row">
+      <button id="aqSave" class="ghost">Speichern</button>
+    </div>
+    <p class="meta">Nachts (nach Uhrzeit) wird es dunkler, ein Mond scheint und die Fische schwimmen langsamer.</p>
+    <p class="meta" id="aqMsg"></p>
+  </section>
+
+  <!-- Wetter -->
+  <section class="card">
+    <div class="title">Wetter</div>
+    <p class="meta">Daten von Open-Meteo (kostenlos, ohne Anmeldung), alle 10 Minuten. Braucht WLAN mit Internet.</p>
+    <div class="status meta" id="wNow">Lade…</div>
+    <div class="row">
+      <input id="wQuery" type="text" placeholder="Ort suchen, z. B. Erfurt" style="flex:1">
+      <button id="wSearch" class="ghost">Suchen</button>
+    </div>
+    <div class="row">
+      <select id="wResults" style="flex:1; display:none"></select>
+    </div>
+    <div class="row">
+      <button id="wSave" class="ghost" disabled>Ort speichern</button>
+      <button id="wShow" class="primary">Wetter anzeigen</button>
+    </div>
+    <p class="meta" id="wMsg"></p>
+  </section>
+
+  <!-- Zeitplan -->
+  <section class="card">
+    <div class="title">Zeitplan</div>
+    <p class="meta">
+      In diesen Zeiten läuft der gewählte Modus, egal was eingestellt ist.
+      Zeitfenster über Mitternacht gehen (z. B. 22:00–07:00). Braucht die Uhrzeit
+      (WLAN mit Internet, oder diese Seite im Browser öffnen).
+    </p>
+    <div id="rules"></div>
+    <div class="row">
+      <button id="ruleAdd" class="ghost small">+ Zeitfenster</button>
+      <button id="ruleSave" class="primary">Zeitplan speichern</button>
+    </div>
+    <p class="meta" id="ruleMsg"></p>
+  </section>
+
+  <!-- Playlist -->
+  <section class="card wide">
+    <div class="title">Playlist</div>
+    <p class="meta">
+      Wechselt der Reihe nach durch die Einträge. Starten mit „Playlist starten“
+      (oder in den Einstellungen Modus „Playlist“ wählen). Galerie-Bilder gehen auch.
+    </p>
+    <div id="items"></div>
+    <div class="row">
+      <button id="itemAdd" class="ghost small">+ Eintrag</button>
+      <label class="check"><input id="shuffle" type="checkbox"> zufällige Reihenfolge</label>
+    </div>
+    <div class="row">
+      <button id="plSave" class="ghost">Speichern</button>
+      <button id="plStart" class="primary">Speichern &amp; Playlist starten</button>
+    </div>
+    <p class="meta" id="plMsg"></p>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // Modi (ohne "playlist" - die Playlist kann sich nicht selbst enthalten)
+  const MODES = [
+    ["paint","Zeichenmodus (aktuelles Bild)"], ["stop","Aus"], ["clock","Uhr"], ["text","Laufschrift"],
+    ["fire","Feuer"], ["weather","Wetter"], ["sky","Himmel"], ["matrix","Matrix-Regen"], ["aquarium","Aquarium"], ["heart","Herz"], ["rainbow_flow","Farbenfluss"],
+    ["retro","Retro-Animation"], ["life","Zellleben"], ["maze","Labyrinth"], ["pong","Pong"],
+    ["online","Web-Bild (codemich.de)"]
+  ];
+  let galleryNames = [];
+
+  async function getJSON(url){ const r = await fetch(url, {cache:"no-store"}); return r.json(); }
+  async function postJSON(url, obj){
+    const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(obj) });
+    return r.json().catch(() => ({ok:false}));
+  }
+  function modeName(m){
+    if (m && m.startsWith("g:")) return "Galerie: " + m.slice(2);
+    const special = { timer:"Timer", ring:"Klingelt", sunrise:"Sonnenaufgang" };
+    if (special[m]) return special[m];
+    const f = MODES.find(x => x[0] === m) || (m === "playlist" ? [m, "Playlist"] : null);
+    return f ? f[1] : m;
+  }
+  function modeSelect(value, withGallery){
+    const s = document.createElement("select");
+    for (const [v, n] of MODES) s.add(new Option(n, v));
+    if (withGallery) for (const g of galleryNames) s.add(new Option("Galerie: " + g, "g:" + g));
+    s.value = value || "clock";
+    return s;
+  }
+
+  // ---------- Status ----------
+  async function loadStatus(){
+    try{
+      const s = await getJSON("/api/program/status");
+      let t = `Jetzt läuft: <b>${modeName(s.mode)}</b> (${s.source})`;
+      if (s.playlistLeftS !== undefined) t += ` • nächster Eintrag in ${Math.max(0, s.playlistLeftS)} s`;
+      if (!s.timeValid) t += `<br>Keine Uhrzeit – der Zeitplan ist gerade nicht aktiv.`;
+      $("status").innerHTML = t;
+      document.querySelectorAll("#items .item").forEach((el, i) =>
+        el.classList.toggle("aktiv", s.source.includes("Playlist") && s.playlistIndex === i));
+    }catch{ $("status").textContent = "Status nicht verfügbar (Firmware 1.8 nötig)."; }
+  }
+
+  // ---------- Laufschrift ----------
+  function updSpeed(){ $("speedVal").textContent = $("speed").value + " ms/Pixel"; }
+  $("speed").addEventListener("input", updSpeed);
+
+  async function loadText(){
+    const t = await getJSON("/api/text").catch(() => null);
+    if (!t) return;
+    $("text").value = t.text || "";
+    $("color").value = t.color || "#ff8800";
+    $("rainbow").checked = !!t.rainbow;
+    $("big").checked = !!t.big;
+    $("speed").value = t.speed || 60;
+    updSpeed();
+  }
+  async function saveText(show){
+    const res = await postJSON("/api/text", {
+      text: $("text").value, color: $("color").value, rainbow: $("rainbow").checked,
+      big: $("big").checked, speed: Number($("speed").value)
+    });
+    if (res.ok && show) await postJSON("/api/settings", { mode: "text" });
+    $("textMsg").textContent = res.ok ? (show ? "Gespeichert, läuft jetzt." : "Gespeichert.") : "Fehler beim Speichern.";
+    loadStatus();
+  }
+  $("textSave").addEventListener("click", () => saveText(false));
+  $("textShow").addEventListener("click", () => saveText(true));
+
+  // ---------- Playlist ----------
+  function addItem(mode, sec){
+    const el = document.createElement("div");
+    el.className = "item";
+    const sel = modeSelect(mode, true);
+    const num = document.createElement("input");
+    num.type = "number"; num.min = 5; num.max = 3600; num.value = sec || 60; num.title = "Sekunden";
+    const lbl = document.createElement("span"); lbl.className = "meta"; lbl.textContent = "Sek.";
+    const up = document.createElement("button"); up.className = "ghost small"; up.textContent = "↑"; up.title = "nach oben";
+    const del = document.createElement("button"); del.className = "ghost small"; del.textContent = "✕"; del.title = "entfernen";
+    up.addEventListener("click", () => { if (el.previousElementSibling) el.parentNode.insertBefore(el, el.previousElementSibling); });
+    del.addEventListener("click", () => el.remove());
+    el.append(sel, num, lbl, up, del);
+    $("items").appendChild(el);
+  }
+  async function loadPlaylist(){
+    const p = await getJSON("/api/playlist").catch(() => ({items:[]}));
+    $("items").innerHTML = "";
+    (p.items || []).forEach(it => addItem(it.mode, it.sec));
+    if (!(p.items || []).length) { addItem("clock", 60); addItem("fire", 60); addItem("sky", 60); }
+    $("shuffle").checked = !!p.shuffle;
+  }
+  async function savePlaylist(start){
+    const items = [...document.querySelectorAll("#items .item")].map(el => ({
+      mode: el.querySelector("select").value,
+      sec: Math.max(5, Math.min(3600, Number(el.querySelector("input").value) || 60))
+    }));
+    const res = await postJSON("/api/playlist", { items, shuffle: $("shuffle").checked });
+    if (res.ok && start) await postJSON("/api/settings", { mode: "playlist" });
+    $("plMsg").textContent = res.ok ? (start ? "Gespeichert, Playlist läuft." : "Gespeichert.") : "Fehler beim Speichern.";
+    loadStatus();
+  }
+  $("itemAdd").addEventListener("click", () => addItem("clock", 60));
+  $("plSave").addEventListener("click", () => savePlaylist(false));
+  $("plStart").addEventListener("click", () => savePlaylist(true));
+
+  // ---------- Zeitplan ----------
+  function addRule(from, to, mode){
+    const el = document.createElement("div");
+    el.className = "item";
+    const f = document.createElement("input"); f.type = "time"; f.value = from || "22:00";
+    const dash = document.createElement("span"); dash.className = "meta"; dash.textContent = "bis";
+    const t = document.createElement("input"); t.type = "time"; t.value = to || "07:00";
+    const sel = modeSelect(mode || "clock", true);
+    sel.add(new Option("Playlist", "playlist"));
+    if (mode === "playlist") sel.value = "playlist";
+    const del = document.createElement("button"); del.className = "ghost small"; del.textContent = "✕";
+    del.addEventListener("click", () => el.remove());
+    el.append(f, dash, t, sel, del);
+    $("rules").appendChild(el);
+  }
+  async function loadSchedule(){
+    const s = await getJSON("/api/schedule").catch(() => ({rules:[]}));
+    $("rules").innerHTML = "";
+    (s.rules || []).forEach(r => addRule(r.from, r.to, r.mode));
+  }
+  $("ruleAdd").addEventListener("click", () => addRule());
+  $("ruleSave").addEventListener("click", async () => {
+    const rules = [...document.querySelectorAll("#rules .item")].map(el => {
+      const [f, t] = el.querySelectorAll("input");
+      return { from: f.value, to: t.value, mode: el.querySelector("select").value };
+    }).filter(r => r.from && r.to && r.from !== r.to);
+    const res = await postJSON("/api/schedule", { rules });
+    $("ruleMsg").textContent = res.ok ? `Gespeichert (${rules.length} Zeitfenster).` : "Fehler beim Speichern.";
+    loadStatus();
+  });
+
+  // ---------- Wecker & Timer ----------
+  const DAYS = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  DAYS.forEach((d, i) => {
+    const l = document.createElement("label"); l.className = "check";
+    l.innerHTML = `<input type="checkbox" data-d="${i}"> ${d}`;
+    $("aDays").appendChild(l);
+  });
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  async function startTimer(seconds){
+    const res = await postJSON("/api/wecker/timer", { seconds });
+    $("tInfo").textContent = res.ok ? (seconds ? `Timer läuft (${mmss(seconds)}).` : "Timer gestoppt.") : "Fehler.";
+    loadWecker(); loadStatus();
+  }
+  document.querySelectorAll(".tq").forEach(b => b.addEventListener("click", () => startTimer(Number(b.dataset.s))));
+  $("tStart").addEventListener("click", () => {
+    const s = (Number($("tMin").value) || 0) * 60 + (Number($("tSec").value) || 0);
+    if (s > 0) startTimer(s);
+  });
+  $("tStop").addEventListener("click", () => startTimer(0));
+
+  $("aVol").addEventListener("change", () => $("aInfo").textContent = `Lautstärke ${$("aVol").value} % (speichern nicht vergessen)`);
+  $("aTest").addEventListener("click", async () => {
+    await postJSON("/api/music/play", { id: $("aSong").value, repeat: false, volume: Number($("aVol").value) });
+  });
+  // Wecker + Auto-Aus-Zeiten liegen zusammen in /alarm.json -> immer alles zusammen speichern
+  async function saveAlarm(msgEl, okText){
+    const days = [...document.querySelectorAll("#aDays input")].map(c => c.checked);
+    const res = await postJSON("/api/wecker/alarm", {
+      enabled: $("aOn").checked, time: $("aTime").value, days, song: $("aSong").value,
+      sunrise: $("aSunrise").checked, volume: Number($("aVol").value),
+      ringMin: Number($("aRingMin").value), timerRingS: Number($("tRingS").value)
+    });
+    msgEl.textContent = res.ok ? okText : "Fehler beim Speichern.";
+    loadWecker();
+  }
+  $("aSave").addEventListener("click", () => saveAlarm($("aInfo"), "Wecker gespeichert."));
+  $("ringSave").addEventListener("click", () => saveAlarm($("aInfo"), "Auto-Aus gespeichert."));
+  $("ringStop").addEventListener("click", async () => { await postJSON("/api/wecker/stop", {}); loadWecker(); loadStatus(); });
+  $("ringSnooze").addEventListener("click", async () => { await postJSON("/api/wecker/snooze", {}); loadWecker(); loadStatus(); });
+
+  let wkFormLoaded = false;
+  async function loadWecker(){
+    try{
+      const w = await getJSON("/api/wecker");
+      $("ringBox").style.display = w.ringing ? "" : "none";
+      $("ringText").textContent = (w.ringing === "timer" ? "Timer abgelaufen!" : "Wecker klingelt!") +
+        (w.ringLeftS !== undefined ? ` (hört in ${mmss(w.ringLeftS)} von selbst auf)` : "");
+      $("ringSnooze").style.display = w.ringing === "alarm" ? "" : "none";
+      $("tInfo").textContent = w.timer.running ? `Noch ${mmss(w.timer.leftS)} von ${mmss(w.timer.totalS)}.` : "";
+      if (!wkFormLoaded) {   // Formular nur einmal füllen, sonst überschreibt das Neuladen Eingaben
+        const a = w.alarm;
+        $("aOn").checked = a.enabled; $("aTime").value = a.time; $("aSunrise").checked = a.sunrise; $("aVol").value = a.volume;
+        document.querySelectorAll("#aDays input").forEach((c, i) => c.checked = !!a.days[i]);
+        $("aSong").value = a.song;
+        $("aRingMin").value = String(a.ringMin ?? 5);
+        $("tRingS").value = String(a.timerRingS ?? 60);
+        wkFormLoaded = true;
+      }
+      let info = "";
+      if (w.snoozeLeftS > 0) info = `Schlummert noch ${mmss(w.snoozeLeftS)}.`;
+      else if (w.sunrise) info = "Sonnenaufgang läuft.";
+      if (!w.timeValid) info += " Keine Uhrzeit – der Wecker braucht WLAN mit Internet oder eine offene Seite.";
+      if (info) $("aInfo").textContent = info;
+    }catch{ $("tInfo").textContent = "Wecker nicht verfügbar (Firmware 1.10 nötig)."; }
+  }
+  async function loadSongs(){
+    const j = await getJSON("/api/music/list").catch(() => null);
+    const sel = $("aSong"); sel.innerHTML = "";
+    (j && j.songs || [{id:"alarm", name:"Alarm"}]).forEach(s => sel.add(new Option(s.name, s.id)));
+  }
+
+  // ---------- Aquarium ----------
+  $("aqFish").addEventListener("input", () => $("aqFishVal").textContent = $("aqFish").value);
+  async function loadAquarium(){
+    const a = await getJSON("/api/aquarium").catch(() => null);
+    if (!a) return;
+    $("aqFish").value = a.fish; $("aqFishVal").textContent = a.fish;
+    document.querySelectorAll("#aqExtras input").forEach(cb => cb.checked = a[cb.dataset.k] !== false);
+  }
+  async function saveAquarium(){
+    const data = { fish: Number($("aqFish").value) };
+    document.querySelectorAll("#aqExtras input").forEach(cb => data[cb.dataset.k] = cb.checked);
+    const res = await postJSON("/api/aquarium", data);
+    $("aqMsg").textContent = res.ok ? "Gespeichert." : "Fehler beim Speichern.";
+  }
+  $("aqSave").addEventListener("click", saveAquarium);
+  // Haken wirken sofort, ohne extra Speichern-Klick
+  document.querySelectorAll("#aqExtras input").forEach(cb => cb.addEventListener("change", saveAquarium));
+  $("aqFeed").addEventListener("click", async () => {
+    const s = await getJSON("/api/program/status").catch(() => ({}));
+    if (s.mode !== "aquarium") await postJSON("/api/settings", { mode: "aquarium" });
+    const res = await postJSON("/api/aquarium/feed", {});
+    $("aqMsg").textContent = res.ok ? "Futter rieselt 🐟" : "Fehler.";
+    loadStatus();
+  });
+  $("aqShow").addEventListener("click", async () => {
+    const res = await postJSON("/api/settings", { mode: "aquarium" });
+    $("aqMsg").textContent = res.ok ? "Aquarium läuft." : "Fehler.";
+    loadStatus();
+  });
+
+  // ---------- Wetter ----------
+  const WMO = { 0:"klar", 1:"überwiegend klar", 2:"teils bewölkt", 3:"bedeckt", 45:"Nebel", 48:"Reifnebel",
+    51:"leichter Niesel", 53:"Niesel", 55:"starker Niesel", 56:"gefrierender Niesel", 57:"gefrierender Niesel",
+    61:"leichter Regen", 63:"Regen", 65:"starker Regen", 66:"gefrierender Regen", 67:"gefrierender Regen",
+    71:"leichter Schnee", 73:"Schnee", 75:"starker Schnee", 77:"Schneegriesel",
+    80:"Regenschauer", 81:"Regenschauer", 82:"heftige Schauer", 85:"Schneeschauer", 86:"Schneeschauer",
+    95:"Gewitter", 96:"Gewitter mit Hagel", 99:"Gewitter mit Hagel" };
+  const fmt = (v) => (Math.round(v * 10) / 10).toLocaleString("de-DE");
+  let wFound = [];
+
+  async function loadWeather(){
+    try{
+      const w = await getJSON("/api/weather");
+      let t = w.hasPlace ? `Ort: <b>${w.place || (w.lat + ", " + w.lon)}</b>` : "Noch kein Ort eingestellt.";
+      if (w.valid) t += `<br>${fmt(w.temp)} °C, ${WMO[w.code] || "Code " + w.code} • heute ${fmt(w.min)} bis ${fmt(w.max)} °C • Wind ${fmt(w.wind)} km/h` +
+                        `<br>abgerufen vor ${Math.round(w.ageS / 60)} min`;
+      else if (w.error) t += `<br>${w.error}`;
+      $("wNow").innerHTML = t;
+    }catch{ $("wNow").textContent = "Wetter nicht verfügbar (Firmware 1.9 nötig)."; }
+  }
+  $("wSearch").addEventListener("click", async () => {
+    const q = $("wQuery").value.trim();
+    if (q.length < 2) return;
+    $("wMsg").textContent = "Suche…";
+    try{
+      const r = await fetch("/api/weather/search?q=" + encodeURIComponent(q), { cache:"no-store" });
+      const j = await r.json();
+      if (!Array.isArray(j)) { $("wMsg").textContent = j.error || "Suche fehlgeschlagen."; return; }
+      wFound = j;
+      const sel = $("wResults");
+      sel.innerHTML = "";
+      j.forEach((o, i) => sel.add(new Option([o.name, o.region, o.country].filter(Boolean).join(", "), i)));
+      sel.style.display = j.length ? "" : "none";
+      $("wSave").disabled = !j.length;
+      $("wMsg").textContent = j.length ? "Ort auswählen und speichern." : "Nichts gefunden.";
+    }catch{ $("wMsg").textContent = "Suche fehlgeschlagen."; }
+  });
+  $("wQuery").addEventListener("keydown", e => { if (e.key === "Enter") $("wSearch").click(); });
+  $("wSave").addEventListener("click", async () => {
+    const o = wFound[Number($("wResults").value)];
+    if (!o) return;
+    const res = await postJSON("/api/weather/config", { name: o.name, lat: o.lat, lon: o.lon });
+    $("wMsg").textContent = res.ok ? `Gespeichert: ${o.name}. Wetter wird geladen…` : "Fehler beim Speichern.";
+    setTimeout(loadWeather, 4000);
+  });
+  $("wShow").addEventListener("click", async () => {
+    const res = await postJSON("/api/settings", { mode: "weather" });
+    $("wMsg").textContent = res.ok ? "Wetter läuft." : "Fehler.";
+    loadStatus();
+  });
+
+  // ---------- Start ----------
+  // Uhrzeit an die Matrix geben (für Zeitplan und Uhr ohne Internet)
+  fetch("/api/time", { method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ epoch: Math.floor(Date.now() / 1000) }) }).catch(()=>{});
+
+  (async () => {
+    galleryNames = await getJSON("/api/gallery").catch(() => []);
+    await loadSongs();
+    await Promise.all([loadText(), loadPlaylist(), loadSchedule(), loadWeather(), loadWecker(), loadAquarium()]);
+    loadStatus();
+    setInterval(loadStatus, 3000);
+    setInterval(loadWecker, 2000);
+    setInterval(loadWeather, 30000);
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Einstellungen</title>
+  <style>
+    :root{
+      --ui:#101522;
+      --fg:#e6f0ff;
+      --muted:#8b94a5;
+      --accent:#3ea6ff;
+      --bg:#050913;
+      --card:#0c1120;
+      --border:#ffffff1f;
+      --shadow:0 10px 24px #0007;
+    }
+    body{ margin:16px; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    a{ color:var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    #wrap{
+      max-width: 980px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 1fr 340px;
+      gap:16px;
+      align-items:start;
+    }
+    @media (max-width: 900px){
+      #wrap{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      box-shadow: var(--shadow);
+    }
+    .title{ font-weight:650; margin-bottom:10px; }
+    .meta{ font-size:12px; color:var(--muted); }
+
+    .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex: 1 1 auto; }
+
+    button, select, input[type="text"], input[type="range"]{
+      background:#080c16;
+      color:var(--fg);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      font:inherit;
+      width:100%;
+      box-sizing:border-box;
+    }
+    input[type="range"]{ padding: 8px 0; }
+
+    button{ cursor:pointer; }
+    button.primary{ background:var(--accent); color:#08111f; border-color:transparent; }
+    button.ghost{ background:transparent; }
+    button:disabled{ cursor:not-allowed; opacity:0.55; }
+
+    label{ display:block; margin-top:12px; color:var(--muted); }
+    .field{ margin-top:10px; }
+
+    hr{ border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+    /* kleine Checkbox-Zeilen im gleichen Stil */
+    .checkline{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#0a0f1d;
+      margin-top:10px;
+    }
+    .checkline input{ width:auto; }
+    .checkline span{ color:var(--fg); }
+  
+    /* kleine Link-Buttons (wie im Painter) */
+    .linkbtn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#080c16;
+      color:var(--fg);
+      text-decoration:none;
+      flex:1 1 auto;
+      box-sizing:border-box;
+    }
+    .linkbtn:hover{ border-color:#ffffff33; text-decoration:none; }
+
+.linkbtn.active{
+  background: var(--accent);
+  color: #08111f;
+  border-color: transparent;
+  cursor: default;
+  pointer-events: none; /* <<< NICHT klickbar */
+}
+
+
+    
+  </style>
+</head>
+
+<body>
+  <div id="wrap">
+
+    <!-- Links: Einstellungen -->
+    <section class="card">
+      <div class="title">Einstellungen</div>
+
+      <div class="row" style="margin-bottom:10px">
+        <a href="/">← Zurück zum Painter</a>
+        <span style="margin-left:auto"></span>
+      </div>
+
+      <div id="safeBox" class="checkline" style="display:none; border-color:#ff9f43; color:#ffd8a8"></div>
+
+      <div class="field">
+        <label for="mode">Modus</label>
+        <select id="mode">
+          <option value="paint">Zeichenmodus</option>
+          <option value="stop">Aus</option>
+          <option value="maze">Labyrinth</option>
+          <option value="pong">Pong</option>
+          <option value="life">Zellleben</option>
+          <option value="sky">Himmel</option>
+          <option value="rainbow_flow">Farbenfluss</option>
+          <option value="heart">Herz</option>
+          <option value="retro">Retro-Animation</option>
+          <option value="clock">Uhr</option>
+          <option value="online">Web-Bild (codemich.de)</option>
+          <option value="text">Laufschrift</option>
+          <option value="fire">Feuer</option>
+          <option value="weather">Wetter</option>
+          <option value="matrix">Matrix-Regen</option>
+          <option value="aquarium">Aquarium</option>
+          <option value="playlist">Playlist</option>
+        </select>
+        <div class="meta" id="activeInfo" style="margin-top:6px"></div>
+        <div class="meta" style="margin-top:4px">Laufschrift-Text, Wetter-Ort, Playlist und Zeitplan: <a href="/programm.html">Programm</a></div>
+      </div>
+
+      <div id="onlineBox" class="checkline" style="display:none; flex-direction:column; align-items:flex-start; gap:4px">
+        <span>Web-Bild</span>
+        <div class="meta" id="onlineInfo">Lade…</div>
+        <div class="meta">
+          Zeigt das Bild, das auf <b>codemich.de</b> gezeichnet wurde (alle 5 s geprüft).
+          Braucht WLAN mit Internet, im AP-Modus geht es nicht.
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="brightness">Helligkeit: <span id="bval" class="meta"></span></label>
+        <input id="brightness" type="range" min="0" max="128" value="64">
+        <div class="meta" style="margin-top:6px">
+          Maximal 128, damit dein Netzteil nicht ins Brownout läuft.
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="row">
+        <div style="flex:1 1 160px">
+          <label for="rotate">Rotation</label>
+          <select id="rotate">
+            <option value="0">0°</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </div>
+        <div style="flex:1 1 160px">
+          <label for="origin">Ursprung</label>
+          <select id="origin">
+            <option value="tl">oben links</option>
+            <option value="tr">oben rechts</option>
+            <option value="bl">unten links</option>
+            <option value="br">unten rechts</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="checkline">
+        <input id="flipX" type="checkbox">
+        <span>Horizontal spiegeln (Flip X)</span>
+      </div>
+
+      <div class="checkline">
+        <input id="flipY" type="checkbox">
+        <span>Vertikal spiegeln (Flip Y)</span>
+      </div>
+
+      <div class="checkline">
+        <input id="serp" type="checkbox" checked>
+        <span>Schlangenlayout (Serpentine)</span>
+      </div>
+
+      <div class="row" style="margin-top:14px">
+        <button id="save" class="primary" style="flex:1">Speichern</button>
+      </div>
+
+      <p id="msg" class="meta" style="margin-top:10px"></p>
+    </section>
+
+    <!-- Rechts: Quicklinks / Infos -->
+    <aside class="card">
+      <div class="title">Kurzlinks</div>
+
+      <div class="row">
+        <a class="linkbtn" href="/">Painter</a>
+        <span class="linkbtn active">Einstellungen</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a class="linkbtn" href="/wifi">WLAN</a>
+        <a class="linkbtn" href="/update">Update</a>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a class="linkbtn" href="/files.html">Dateimanager</a>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a class="linkbtn" href="/gallery.html">Galerie Dateimanager</a>
+        <a class="linkbtn" href="/musik.html">Musik</a>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <a class="linkbtn" href="/programm.html">Programm (Laufschrift, Playlist, Zeitplan)</a>
+      </div>
+
+      <hr>
+
+      <div class="title">Hinweis</div>
+      <p class="meta">
+        Die Einstellungen werden auf dem ESP32 gespeichert und sofort angewendet.
+        Bei „Aus“ werden die LEDs nur gelegentlich aktualisiert, damit der Webserver nicht blockiert.
+      </p>
+
+      <hr>
+
+      <div class="title">Speicher (LittleFS)</div>
+      <div class="meta" id="storageInfo">Lade…</div>
+    </aside>
+
+  </div>
+
+<script>
+(async () => {
+  const mode = document.getElementById("mode");
+  const brightness = document.getElementById("brightness");
+  const bval = document.getElementById("bval");
+  const rotate = document.getElementById("rotate");
+  const origin = document.getElementById("origin");
+  const flipX = document.getElementById("flipX");
+  const flipY = document.getElementById("flipY");
+  const serp = document.getElementById("serp");
+  const msg = document.getElementById("msg");
+
+  function updB(){ bval.textContent = brightness.value; }
+
+  // Zeigt, was gerade wirklich läuft (Playlist oder Zeitplan können vom Modus abweichen)
+  function showActive(s){
+    const el = document.getElementById("activeInfo");
+    if (!s || !s.activeMode || (s.activeMode === s.mode && s.activeSource === "Einstellung")) { el.textContent = ""; return; }
+    const m = s.activeMode.startsWith("g:") ? "Galerie: " + s.activeMode.slice(2)
+            : (mode.querySelector(`option[value="${s.activeMode}"]`)?.textContent || s.activeMode);
+    el.textContent = `Gerade läuft: ${m} (${s.activeSource})`;
+  }
+  brightness.addEventListener("input", updB);
+
+  async function load(){
+    const r = await fetch("/api/settings");
+    const s = await r.json().catch(()=>null);
+    if (!s) return;
+
+    mode.value = s.mode || "paint";
+    brightness.value = s.brightness ?? 64;
+    rotate.value = String(s.rotate ?? 0);
+    origin.value = s.origin || "tl";
+    flipX.checked = !!s.flipX;
+    flipY.checked = !!s.flipY;
+    serp.checked = (s.serpentine !== false);
+    updB();
+    showActive(s);
+  }
+
+  async function postJSON(url, obj){
+    const r = await fetch(url, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(obj)
+    });
+    return r.json().catch(()=> ({}));
+  }
+
+
+async function loadStorageInfo(){
+  const el = document.getElementById('storageInfo');
+  if (!el) return;
+
+  try{
+    const r = await fetch('/api/storage', { cache:'no-store' });
+    const j = await r.json();
+
+    const total = Number(j.total||0);
+    const used  = Number(j.used||0);
+    const freeB = Number(j.free||0);
+
+    const fmt = (b) => {
+      const kb = 1024, mb = kb*1024;
+      if (b >= mb) return (b/mb).toFixed(2) + " MB";
+      return (b/kb).toFixed(1) + " KB";
+    };
+
+    el.innerHTML =
+      `Gesamt: <b>${fmt(total)}</b><br>`+
+      `Belegt: <b>${fmt(used)}</b><br>`+
+      `Frei: <b>${fmt(freeB)}</b>`;
+  }catch{
+    el.textContent = "Speicherinfo nicht verfügbar.";
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadStorageInfo);
+
+  const onlineBox = document.getElementById("onlineBox");
+  const onlineInfo = document.getElementById("onlineInfo");
+
+  async function loadOnlineStatus(){
+    onlineBox.style.display = (mode.value === "online") ? "flex" : "none";
+    if (mode.value !== "online") return;
+    try{
+      const r = await fetch("/api/online/status", { cache:"no-store" });
+      const s = await r.json();
+      let t;
+      if (!s.wifi) t = "Kein WLAN verbunden (AP-Modus). Unter „WLAN“ ein Netz eintragen.";
+      else if (s.error) t = "Fehler: " + s.error + (s.http ? " (HTTP " + s.http + ")" : "");
+      else if (s.serverMode === "stop") t = "Auf der Webseite ist „Aus“ gesetzt.";
+      else t = "OK: „" + (s.name || "ohne Name") + "“";
+      if (s.lastOkS >= 0) t += " • zuletzt geprüft vor " + s.lastOkS + " s";
+      onlineInfo.textContent = t;
+    }catch{
+      onlineInfo.textContent = "Status nicht verfügbar (alte Firmware?).";
+    }
+  }
+  mode.addEventListener("change", loadOnlineStatus);
+  setInterval(loadOnlineStatus, 3000);
+
+
+  document.getElementById("save").addEventListener("click", async ()=>{
+    msg.textContent = "Speichere...";
+    const payload = {
+      mode: mode.value,
+      brightness: Number(brightness.value),
+      rotate: Number(rotate.value),
+      origin: origin.value,
+      flipX: flipX.checked,
+      flipY: flipY.checked,
+      serpentine: serp.checked
+    };
+    const res = await postJSON("/api/settings", payload);
+    msg.textContent = res.ok ? "OK gespeichert" : "Fehler";
+    loadOnlineStatus();
+    fetch("/api/settings", { cache:"no-store" }).then(r => r.json()).then(showActive).catch(()=>{});
+  });
+
+  // Uhrzeit an die Matrix geben (für die Uhr im AP-Modus ohne Internet)
+  fetch("/api/time", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ epoch: Math.floor(Date.now() / 1000) })
+  }).catch(()=>{});
+
+  // Hinweis, wenn die Matrix nach Absturz/Stromeinbruch in den Zeichenmodus gewechselt ist
+  fetch("/api/version", { cache:"no-store" }).then(r => r.json()).then(v => {
+    if (!v.safeModeFrom) return;
+    const box = document.getElementById("safeBox");
+    const name = mode.querySelector(`option[value="${v.safeModeFrom}"]`)?.textContent || v.safeModeFrom;
+    box.textContent = `Die Matrix ist im Modus „${name}“ neu gestartet (${v.resetReason}) und steht deshalb auf Zeichenmodus. ` +
+      `Bei „Stromeinbruch“: Helligkeit senken oder stärkeres Netzteil.`;
+    box.style.display = "flex";
+  }).catch(()=>{});
+
+  await load();
+  loadOnlineStatus();
+})();
+</script>
+</body>
+</html>

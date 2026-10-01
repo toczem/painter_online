@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Galerie-Dateien</title>
+  <style>
+    :root{
+      --ui:#101522;
+      --fg:#e6f0ff;
+      --muted:#8b94a5;
+      --accent:#3ea6ff;
+      --bg:#050913;
+      --card:#0c1120;
+      --border:#ffffff1f;
+      --shadow:0 10px 24px #0007;
+    }
+    body{ margin:16px; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    a{ color:var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    #wrap{
+      max-width: 980px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 1fr 340px;
+      gap:16px;
+      align-items:start;
+    }
+    @media (max-width: 900px){ #wrap{ grid-template-columns: 1fr; } }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      box-shadow: var(--shadow);
+    }
+    .title{ font-weight:650; margin-bottom:10px; }
+    .meta{ font-size:12px; color:var(--muted); }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex: 1 1 auto; }
+
+    button, select, input[type="text"], input[type="file"]{
+      background:#080c16;
+      color:var(--fg);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      font:inherit;
+      width:100%;
+      box-sizing:border-box;
+    }
+    button{ cursor:pointer; }
+    button.primary{ background:var(--accent); color:#08111f; border-color:transparent; }
+    button.ghost{ background:transparent; }
+    button:disabled{ cursor:not-allowed; opacity:0.55; }
+
+    hr{ border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+    .list{
+      display:grid;
+      gap:8px;
+      margin-top:10px;
+    }
+    .item{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px;
+      background:#0a0f1d;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .item .name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .item .size{ font-size:12px; color:var(--muted); white-space:nowrap; }
+    .item .actions{ display:flex; gap:8px; }
+    .item .actions button{ width:auto; padding:6px 10px; }
+    code{ color:var(--fg); }
+  </style>
+</head>
+
+<body>
+<div id="wrap">
+
+  <section class="card">
+    <div class="title">Galerie-Dateiuploader (JSON)</div>
+
+    <div class="row" style="margin-bottom:10px">
+      <a href="/">← Zurück zum Painter</a>
+    </div>
+
+    <p class="meta">
+      Hier verwaltest du die JSONs in <code>/gallery/</code>:
+      Upload (überschreibt), Download, Umbenennen, Löschen.
+    </p>
+
+    <hr>
+
+    <div class="title" style="font-size:14px">Upload</div>
+    <div class="row">
+      <input id="file" type="file" accept="application/json,.json">
+    </div>
+
+    <label class="meta" style="margin-top:10px">Name (ohne .json)</label>
+    <div class="row">
+      <input id="name" type="text" placeholder="z.B. kaktus">
+      <button id="btnUpload" class="primary">Hochladen</button>
+    </div>
+
+    <p id="msg" class="meta" style="margin-top:10px"></p>
+
+    <hr>
+
+    <div class="row">
+      <button id="btnRefresh" class="ghost">Liste aktualisieren</button>
+    </div>
+
+    <div id="list" class="list">
+      <div class="meta">Lade Liste…</div>
+    </div>
+  </section>
+
+  <aside class="card">
+    <hr>
+
+    <div class="title">Hinweis</div>
+    <p class="meta">
+      Nur <b>.json</b> wird akzeptiert. Der Dateiname wird “gesäubert”:
+      Umlaute werden zu ae/oe/ue/ss, Leerzeichen zu _, sonst nur a-z, A-Z, 0-9, _ und - (max. 40 Zeichen).
+      Farben dürfen als Zahl (Matrix) oder als "#rrggbb" (codemich.de) gespeichert sein.
+    </p>
+  </aside>
+
+</div>
+
+<script>
+(() => {
+  const fileEl = document.getElementById('file');
+  const nameEl = document.getElementById('name');
+  const btnUpload = document.getElementById('btnUpload');
+  const btnRefresh = document.getElementById('btnRefresh');
+  const listEl = document.getElementById('list');
+  const msg = document.getElementById('msg');
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+  // Gleiche Regeln wie die Firmware (sanitizeName): Umlaute -> ae/oe/ue/ss, Leerzeichen -> _, max. 40
+  function cleanName(s){
+    const cleaned = String(s || "").replace(/\.json$/i, "").trim()
+      .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue")
+      .replace(/Ä/g,"Ae").replace(/Ö/g,"Oe").replace(/Ü/g,"Ue").replace(/ß/g,"ss")
+      .replace(/[\s.]+/g, "_").replace(/[^a-zA-Z0-9_-]/g, "").replace(/^_+|_+$/g, "")
+      .slice(0, 40);
+    return cleaned || "bild";
+  }
+
+  async function refresh(){
+    listEl.innerHTML = `<div class="meta">Lade Liste…</div>`;
+    msg.textContent = "";
+    try{
+      const r = await fetch('/api/gallery_mgr/list', {cache:'no-store'});
+      const arr = await r.json();
+      if (!Array.isArray(arr)) throw new Error("bad");
+      if (arr.length === 0){
+        listEl.innerHTML = `<div class="meta">Keine Dateien in /gallery/.</div>`;
+        return;
+      }
+
+      // Sortiert nach Name
+      arr.sort((a,b) => String(a.name).localeCompare(String(b.name)));
+
+      listEl.innerHTML = "";
+      for (const it of arr){
+        const name = String(it.name || "");
+        const size = Number(it.size || 0);
+
+        const row = document.createElement('div');
+        row.className = "item";
+        row.innerHTML = `
+          <div style="min-width:0">
+            <div class="name">${esc(name)}.json</div>
+            <div class="size">${size} Bytes</div>
+          </div>
+          <div class="actions">
+            <button class="ghost" data-act="dl">Download</button>
+            <button class="ghost" data-act="rn">Umbenennen</button>
+            <button class="ghost" data-act="del">Löschen</button>
+          </div>
+        `;
+
+        row.querySelector('[data-act="dl"]').addEventListener('click', () => {
+          window.location.href = '/api/gallery_mgr/download?name=' + encodeURIComponent(name);
+        });
+
+        row.querySelector('[data-act="del"]').addEventListener('click', async () => {
+          if (!confirm(`"${name}.json" wirklich löschen?`)) return;
+          msg.textContent = "Lösche…";
+          const r = await fetch('/api/gallery_mgr/delete?name=' + encodeURIComponent(name), {method:'POST'});
+          const j = await r.json().catch(()=>({ok:false}));
+          msg.textContent = j.ok ? "Gelöscht." : "Fehler beim Löschen.";
+          refresh();
+        });
+
+        row.querySelector('[data-act="rn"]').addEventListener('click', async () => {
+          const to = prompt("Neuer Name (ohne .json):", name);
+          if (!to) return;
+          const cleanTo = cleanName(to);
+          msg.textContent = "Benenne um…";
+          const r = await fetch('/api/gallery_mgr/rename', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({from:name, to:cleanTo})
+          });
+          const j = await r.json().catch(()=>({ok:false}));
+          msg.textContent = j.ok ? `Umbenannt: ${cleanTo}.json` : ("Fehler beim Umbenennen.");
+          refresh();
+        });
+
+        listEl.appendChild(row);
+      }
+    }catch(e){
+      listEl.innerHTML = `<div class="meta">Fehler beim Laden der Liste.</div>`;
+    }
+  }
+
+  async function upload(){
+    const f = fileEl.files && fileEl.files[0];
+    if (!f) { msg.textContent = "Bitte eine JSON-Datei wählen."; return; }
+
+    const rawName = (nameEl.value || "").trim();
+    const base = cleanName(rawName.length ? rawName : (f.name.replace(/\.json$/i, "") || "bild"));
+
+    // Nur JSON akzeptieren
+    if (!/\.json$/i.test(f.name) && (f.type && f.type !== "application/json")){
+      // viele Browser liefern type leer, deswegen nur soft prüfen
+    }
+
+    btnUpload.disabled = true;
+    msg.textContent = "Upload läuft…";
+
+    const fd = new FormData();
+    fd.append("file", f, "upload.json");
+
+    try{
+      const r = await fetch('/api/gallery_mgr/upload?name=' + encodeURIComponent(base), {
+        method:'POST',
+        body: fd
+      });
+      const j = await r.json().catch(()=>({ok:false}));
+      msg.textContent = j.ok ? `OK hochgeladen: ${j.name}.json` : "Upload fehlgeschlagen.";
+      if (j.ok) {
+        fileEl.value = "";
+        // Name stehen lassen
+        await refresh();
+      }
+    }catch(e){
+      msg.textContent = "Upload-Fehler.";
+    }finally{
+      btnUpload.disabled = false;
+    }
+  }
+
+  btnRefresh.addEventListener('click', refresh);
+  btnUpload.addEventListener('click', upload);
+
+  refresh();
+})();
+</script>
+</body>
+</html>

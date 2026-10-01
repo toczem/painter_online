@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Firmware Update</title>
+  <style>
+    :root{
+      --fg:#e6f0ff; --muted:#8b94a5; --accent:#3ea6ff;
+      --bg:#050913; --card:#0c1120; --border:#ffffff1f; --shadow:0 10px 24px #0007;
+    }
+    body{margin:16px;font-family:system-ui,sans-serif;background:var(--bg);color:var(--fg);}
+    a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+    .wrap{max-width:760px;margin:0 auto;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:var(--shadow);}
+    .title{font-weight:650;margin-bottom:10px}
+    .meta{font-size:12px;color:var(--muted);line-height:1.4}
+    input,button{
+      background:#080c16;color:var(--fg);border:1px solid var(--border);
+      border-radius:10px;padding:10px;font:inherit;width:100%;box-sizing:border-box
+    }
+    button{cursor:pointer;margin-top:10px}
+    button.primary{background:var(--accent);color:#08111f;border-color:transparent}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .bar{height:12px;border-radius:999px;border:1px solid var(--border);overflow:hidden;margin-top:10px;background:#080c16}
+    .bar > div{height:100%;width:0%;background:var(--accent)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .row a{flex:1}
+  
+    /* kleine Link-Buttons (wie im Painter) */
+    .linkbtn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#080c16;
+      color:var(--fg);
+      text-decoration:none;
+      flex:1 1 auto;
+      box-sizing:border-box;
+    }
+    .linkbtn:hover{ border-color:#ffffff33; text-decoration:none; }
+
+.linkbtn.active{
+  background: var(--accent);
+  color: #08111f;
+  border-color: transparent;
+  cursor: default;
+  pointer-events: none; /* <<< NICHT klickbar */
+}
+
+
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="title">Firmware Update</div>
+
+      <div class="row" style="margin-bottom:10px">
+        <a href="/">← Zurück zum Painter</a>
+      </div>
+
+    <div class="card">
+  <div class="title">Firmware-Information</div>
+
+  <p class="meta">
+    Aktuell installierte Version:
+  </p>
+
+  <!-- Wird von /api/version aus der Firmware gefüllt, hier nichts von Hand ändern -->
+  <p style="font-size:15px; margin:6px 0 2px 0">
+    <b>Version <span id="fwVersion">?</span></b>
+    <span id="fwNote" class="meta"></span>
+  </p>
+
+  <p class="meta">
+    Build-Datum: <b id="fwBuild">unbekannt (alte Firmware ohne /api/version)</b> • Micha IT 686
+  </p>
+  <p class="meta">
+    Letzter Neustart: <b id="fwReset">–</b>
+  </p>
+
+  <hr>
+</div>
+
+
+    <p class="meta">
+      Wähle die <b>.bin</b> Datei aus und starte das Update.  
+      Nach dem Upload startet die Matrix automatisch neu.
+    </p>
+
+    <input id="file" type="file" accept=".bin,application/octet-stream">
+    <input id="pin" type="password" inputmode="numeric" placeholder="PIN (wie beim Dateimanager)" style="margin-top:10px">
+    <button id="btn" class="primary">Update starten</button>
+
+    <div class="bar"><div id="bar"></div></div>
+    <p id="msg" class="meta" style="margin-top:10px"></p>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+    <p class="meta">
+      Tipp: Während des Updates nichts abziehen.  
+      Wenn es im AP-Modus läuft: <code>192.168.4.1/update</code>
+    </p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const fileEl = document.getElementById('file');
+  const btn = document.getElementById('btn');
+  const bar = document.getElementById('bar');
+  const msg = document.getElementById('msg');
+
+  // Version direkt aus der laufenden Firmware
+  fetch('/api/version', { cache:'no-store' })
+    .then(r => r.json())
+    .then(v => {
+      document.getElementById('fwVersion').textContent = v.version || '?';
+      document.getElementById('fwNote').textContent = v.note ? '– ' + v.note : '';
+      const d = new Date((v.build || '').replace(/\s+/g, ' '));
+      document.getElementById('fwBuild').textContent =
+        isNaN(d) ? (v.build || '?') : d.toLocaleString('de-DE', { dateStyle:'medium', timeStyle:'short' });
+      if (v.resetReason) document.getElementById('fwReset').textContent = v.resetReason;
+    })
+    .catch(() => {});
+
+  // PIN aus dem Dateimanager übernehmen, falls dort schon eingegeben
+  try { document.getElementById('pin').value = sessionStorage.getItem('fm_pin') || ''; } catch (_) {}
+
+  function setProgress(p){
+    bar.style.width = Math.max(0, Math.min(100, p)) + "%";
+  }
+
+  btn.addEventListener('click', () => {
+    const f = fileEl.files && fileEl.files[0];
+    if (!f) { msg.textContent = "Bitte eine .bin Datei auswählen."; return; }
+    const pin = document.getElementById('pin').value.trim();
+    if (!pin) { msg.textContent = "Bitte die PIN eingeben."; return; }
+    try { sessionStorage.setItem('fm_pin', pin); } catch (_) {}
+
+    btn.disabled = true;
+    msg.textContent = "Upload läuft…";
+    setProgress(0);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/update", true);
+    xhr.setRequestHeader("X-PIN", pin);   // ohne richtige PIN schreibt die Matrix nichts
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const p = (e.loaded / e.total) * 100;
+      setProgress(p);
+      msg.textContent = `Upload ${p.toFixed(0)}%`;
+    };
+
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status === 200) {
+        msg.textContent = "Update übertragen. Neustart… (Seite lädt gleich neu und zeigt die neue Version)";
+        setProgress(100);
+        setTimeout(() => location.reload(), 10000);
+      } else if (xhr.status === 403) {
+        msg.textContent = "Falsche PIN – es wurde nichts geändert.";
+        setProgress(0);
+        btn.disabled = false;
+      } else {
+        msg.textContent = "Fehler beim Update.";
+        btn.disabled = false;
+      }
+    };
+
+    // Wichtig: WebServer erwartet multipart/form-data
+    const fd = new FormData();
+    fd.append("update", f, f.name);
+    xhr.send(fd);
+  });
+})();
+</script>
+</body>
+</html>

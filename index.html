@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LED Painter</title>
+  <style>
+    :root{
+      --ui:#101522;
+      --fg:#e6f0ff;
+      --muted:#8b94a5;
+      --accent:#3ea6ff;
+      --bg:#050913;
+      --card:#0c1120;
+      --border:#ffffff1f;
+      --shadow:0 10px 24px #0007;
+    }
+    body{ margin:16px; font-family:system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+    a{ color:var(--accent); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+
+    #wrap{ max-width: 980px; margin:0 auto; display:grid; grid-template-columns: 1fr 340px; gap:16px; }
+    @media (max-width: 900px){ #wrap{ grid-template-columns: 1fr; } }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:12px;
+      box-shadow: var(--shadow);
+    }
+    .title{ font-weight:650; margin-bottom:10px; }
+    .row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .meta{ font-size:12px; color:var(--muted); }
+
+    button, select, input[type="text"], input[type="file"]{
+      background:#080c16;
+      color:var(--fg);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      font:inherit;
+    }
+    input[type="file"]{ padding:7px 10px; }
+    button{ cursor:pointer; }
+    button.primary{ background:var(--accent); color:#08111f; border-color:transparent; }
+    button.ghost{ background:transparent; }
+    button:disabled{ cursor:not-allowed; opacity:0.55; }
+
+    hr{ border:none; border-top:1px solid var(--border); margin:14px 0; }
+
+    /* Canvas */
+    #canvasWrap{ background:#0a0f1d; border:1px solid var(--border); border-radius:14px; padding:10px; }
+    #matrix{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius:10px;
+      touch-action:none; /* Finger malen */
+      background:#000;
+    }
+
+    /* Palette */
+    #palette{
+      display:grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap:8px;
+    }
+    .swatch{
+      width:28px; height:28px;
+      border-radius:8px;
+      border:1px solid #0008;
+      box-shadow: 0 1px 0 #fff2 inset;
+      cursor:pointer;
+    }
+
+    /* kleine Link-Buttons */
+    .linkbtn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#080c16;
+      color:var(--fg);
+      text-decoration:none;
+      flex:1 1 auto;
+    }
+    .linkbtn:hover{ border-color:#ffffff33; text-decoration:none; }
+
+    .linkbtn.active{
+      background: var(--accent);
+      color: #08111f;
+      border-color: transparent;
+      cursor: default;
+      pointer-events: none; /* nicht klickbar */
+    }
+  </style>
+</head>
+
+<body>
+  <!-- erscheint nur, wenn Wecker oder Timer klingelt -->
+  <div id="ringBanner" class="card" style="display:none; max-width:980px; margin:0 auto 16px; border-color:#ff9f43">
+    <div class="title" id="ringTitle">Wecker klingelt!</div>
+    <div class="row">
+      <button id="ringOff" class="primary" style="flex:1; font-size:18px; padding:14px">Aus</button>
+      <button id="ringSnooze" class="ghost" style="flex:1; font-size:18px; padding:14px">Schlummern 5 min</button>
+    </div>
+  </div>
+  <div id="wrap">
+    <!-- Links: Board -->
+    <section class="card">
+      <div class="title">LED Painter</div>
+
+      <div id="canvasWrap">
+        <canvas id="matrix" width="320" height="320" aria-label="16×16 Zeichenfeld"></canvas>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <label style="color:var(--muted)">Farbe</label>
+        <input id="colorInput" type="color" value="#ff8800">
+        <input id="nameInput" type="text" placeholder="Mein Bild" maxlength="40" style="flex:1; min-width:160px">
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="toolBrush" class="toolbtn primary">Pinsel</button>
+        <button id="toolEraser" class="toolbtn ghost">Radierer</button>
+        <button id="toolDropper" class="toolbtn ghost">Pipette</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="btnClear" class="ghost">Leeren</button>
+        <button id="btnFill" class="ghost">Füllen</button>
+        <button id="btnInvert" class="ghost">Invertieren</button>
+        <button id="btnRandom" class="ghost">Zufall</button>
+
+        <button id="btnUndo" class="ghost">Undo</button>
+        <button id="btnRedo" class="ghost">Redo</button>
+
+        <button id="btnSend" class="primary" style="margin-left:auto">An ESP32 senden</button>
+      </div>
+
+      <!-- NEU: Import/Export -->
+      <div class="row" style="margin-top:10px">
+        <input id="fileLoad" type="file" accept="application/json" style="flex:1">
+        <button id="btnDownload" class="ghost">Als JSON speichern</button>
+      </div>
+      <p class="meta" style="margin-top:6px">
+        JSON-Format.
+      </p>
+
+      <p id="msg" class="meta" style="margin-top:10px"></p>
+    </section>
+
+    <!-- Rechts: Kurzlinks / Palette / Galerie -->
+    <aside style="display:grid; gap:16px; align-content:start;">
+
+      <!-- Kurzlinks -->
+      <div class="card">
+        <div class="title">Kurzlinks</div>
+        <div class="row">
+          <span class="linkbtn active">Painter</span>
+          <a class="linkbtn" href="/einstellungen.html">Einstellungen</a>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <a class="linkbtn" href="/wifi">WLAN</a>
+          <a class="linkbtn" href="/programm.html">Programm</a>
+        </div>
+        <p class="meta" style="margin-top:10px">
+          AP-Modus: <b>192.168.4.1</b> • Im WLAN ggf.: <b>led-matrix.local</b>
+        </p>
+      </div>
+
+      <!-- Palette -->
+      <div class="card">
+        <div class="title">Palette</div>
+        <div id="palette"></div>
+        <p class="meta" id="paletteMeta" style="margin-top:10px"></p>
+      </div>
+
+      <!-- Galerie -->
+      <div class="card">
+        <div class="title">Galerie</div>
+
+        <div class="row">
+          <button id="saveGallery" class="ghost" style="flex:1">In Galerie speichern</button>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <select id="gallery" style="flex:1"></select>
+          <button id="loadGallery" class="ghost">In Editor</button>
+          <button id="applyGallery" class="primary">Anzeigen</button>
+        </div>
+
+        <p class="meta" style="margin-top:10px">
+        </p>
+      </div>
+
+    </aside>
+  </div>
+
+<script>
+(() => {
+  const SIZE = 16;
+
+  // UI
+  const canvas = document.getElementById("matrix");
+  const ctx = canvas.getContext("2d");
+  const colorInput = document.getElementById("colorInput");
+  const nameInput  = document.getElementById("nameInput");
+  const msg        = document.getElementById("msg");
+
+  const toolBtns = {
+    brush:   document.getElementById("toolBrush"),
+    eraser:  document.getElementById("toolEraser"),
+    dropper: document.getElementById("toolDropper"),
+  };
+
+  // Aktionen
+  const btnClear  = document.getElementById("btnClear");
+  const btnFill   = document.getElementById("btnFill");
+  const btnInvert = document.getElementById("btnInvert");
+  const btnRandom = document.getElementById("btnRandom");
+  const btnSend   = document.getElementById("btnSend");
+  const btnUndo   = document.getElementById("btnUndo");
+  const btnRedo   = document.getElementById("btnRedo");
+
+  // Import/Export
+  const fileLoad    = document.getElementById("fileLoad");
+  const btnDownload = document.getElementById("btnDownload");
+
+  // Galerie
+  const btnSaveGallery = document.getElementById("saveGallery");
+  const gallerySel     = document.getElementById("gallery");
+  const btnLoadGallery = document.getElementById("loadGallery");
+  const btnApplyGallery= document.getElementById("applyGallery");
+
+  // State: Pixel als 0xRRGGBB (Integer) -> passt direkt zum ESP32
+  let pixels = Array.from({length: SIZE*SIZE}, () => 0);
+  let tool = "brush";
+  let isDown = false;
+  let lastCell = -1;
+
+  // Undo/Redo
+  const MAX_HISTORY = 40;
+  let undoStack = [];
+  let redoStack = [];
+
+  function hexToInt(h) { return parseInt(h.slice(1), 16) >>> 0; }
+  function intToHex(n) { return "#" + (n >>> 0).toString(16).padStart(6,"0"); }
+
+  function setTool(t){
+    tool = t;
+    Object.entries(toolBtns).forEach(([k, btn]) => {
+      btn.classList.remove("primary");
+      btn.classList.add("ghost");
+      if (k === t) { btn.classList.add("primary"); btn.classList.remove("ghost"); }
+    });
+  }
+
+  function updateHistoryButtons(){
+    btnUndo.disabled = undoStack.length === 0;
+    btnRedo.disabled = redoStack.length === 0;
+  }
+
+  function pushHistory(){
+    undoStack.push(pixels.slice());
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+    redoStack.length = 0;
+    updateHistoryButtons();
+  }
+
+  function undo(){
+    if (!undoStack.length) return;
+    redoStack.push(pixels.slice());
+    pixels = undoStack.pop();
+    draw();
+    updateHistoryButtons();
+  }
+
+  function redo(){
+    if (!redoStack.length) return;
+    undoStack.push(pixels.slice());
+    pixels = redoStack.pop();
+    draw();
+    updateHistoryButtons();
+  }
+
+  function draw(){
+    const w = canvas.width;
+    const cell = w / SIZE;
+
+    for (let y=0; y<SIZE; y++){
+      for (let x=0; x<SIZE; x++){
+        const i = y*SIZE + x;
+        ctx.fillStyle = intToHex(pixels[i]);
+        ctx.fillRect(x*cell, y*cell, cell, cell);
+      }
+    }
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    for (let i=0; i<=SIZE; i++){
+      const p = i*cell + 0.5;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, w); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(w, p); ctx.stroke();
+    }
+
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 1.5;
+    for (let i=0; i<=SIZE; i+=4){
+      const p = i*cell + 0.5;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, w); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(w, p); ctx.stroke();
+    }
+    ctx.lineWidth = 1;
+  }
+
+  function cellFromPointer(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const cellSize = rect.width / SIZE;
+    const col = Math.floor(x / cellSize);
+    const row = Math.floor(y / cellSize);
+    if (col<0||col>=SIZE||row<0||row>=SIZE) return -1;
+    return row*SIZE + col;
+  }
+
+  function applyToolAt(idx){
+    if (idx < 0) return;
+    if (tool !== "dropper" && idx === lastCell) return;
+    lastCell = idx;
+
+    if (tool === "brush"){
+      pixels[idx] = hexToInt(colorInput.value);
+    } else if (tool === "eraser"){
+      pixels[idx] = 0;
+    } else if (tool === "dropper"){
+      const picked = pixels[idx] >>> 0;
+      colorInput.value = intToHex(picked);
+      setTool("brush");
+    }
+    draw();
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    isDown = true;
+    lastCell = -1;
+    pushHistory();
+    applyToolAt(cellFromPointer(e));
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!isDown) return;
+    applyToolAt(cellFromPointer(e));
+  });
+
+  canvas.addEventListener("pointerup", () => { isDown = false; lastCell = -1; });
+  canvas.addEventListener("pointerleave", () => { isDown = false; lastCell = -1; });
+
+  toolBtns.brush.addEventListener("click", () => setTool("brush"));
+  toolBtns.eraser.addEventListener("click", () => setTool("eraser"));
+  toolBtns.dropper.addEventListener("click", () => setTool("dropper"));
+
+  btnClear.addEventListener("click", () => { pushHistory(); pixels.fill(0); draw(); });
+  btnFill.addEventListener("click", () => { pushHistory(); pixels.fill(hexToInt(colorInput.value)); draw(); });
+  btnInvert.addEventListener("click", () => { pushHistory(); pixels = pixels.map(v => (0xFFFFFF ^ (v>>>0))>>>0); draw(); });
+  btnRandom.addEventListener("click", () => { pushHistory(); pixels = pixels.map(()=> (Math.floor(Math.random()*0x1000000)>>>0)); draw(); });
+
+  btnUndo.addEventListener("click", undo);
+  btnRedo.addEventListener("click", redo);
+
+  async function postJSON(url, obj){
+    const r = await fetch(url, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(obj)
+    });
+    return r.json().catch(()=> ({}));
+  }
+
+  btnSend.addEventListener("click", async () => {
+    msg.textContent = "Sende...";
+    const res = await postJSON("/api/paint", {
+      name: nameInput.value || "image_16x16",
+      w: SIZE,
+      h: SIZE,
+      pixels
+    });
+    msg.textContent = res.ok ? "OK: gespeichert & angezeigt" : "Fehler beim Senden";
+  });
+
+  // --- NEU: JSON Export ---
+  btnDownload.addEventListener("click", () => {
+    const data = {
+      name: (nameInput.value || "image_16x16").trim(),
+      w: SIZE,
+      h: SIZE,
+      pixels: pixels.map(v => (v >>> 0))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (data.name || "image_16x16") + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    msg.textContent = "JSON gespeichert.";
+    setTimeout(()=> msg.textContent="", 1200);
+  });
+
+  // --- NEU: JSON Import (Upload) ---
+  function normalizePixels(obj){
+    if (!obj || !Array.isArray(obj.pixels)) return null;
+
+    // 1) bereits flach mit 256 Werten
+    if (obj.pixels.length === SIZE*SIZE && !Array.isArray(obj.pixels[0])) {
+      return obj.pixels.map(v => {
+        if (typeof v === "number") return (v >>> 0);
+        if (typeof v === "string") {
+          // akzeptiere "#rrggbb" oder "rrggbb"
+          let s = v.trim().replace(/^#/, "");
+          if (/^[0-9a-fA-F]{6}$/.test(s)) return (parseInt(s, 16) >>> 0);
+        }
+        return 0;
+      });
+    }
+
+    // 2) 16x16 Array
+    if (obj.pixels.length === SIZE && Array.isArray(obj.pixels[0])) {
+      const flat = [];
+      for (let y=0; y<SIZE; y++){
+        if (!Array.isArray(obj.pixels[y]) || obj.pixels[y].length !== SIZE) return null;
+        for (let x=0; x<SIZE; x++){
+          const v = obj.pixels[y][x];
+          if (typeof v === "number") flat.push(v >>> 0);
+          else if (typeof v === "string") {
+            let s = v.trim().replace(/^#/, "");
+            flat.push(/^[0-9a-fA-F]{6}$/.test(s) ? (parseInt(s,16)>>>0) : 0);
+          } else flat.push(0);
+        }
+      }
+      return flat;
+    }
+
+    return null;
+  }
+
+  fileLoad.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const obj = JSON.parse(String(reader.result));
+        const flat = normalizePixels(obj);
+        if (!flat || flat.length !== SIZE*SIZE) {
+          alert("JSON hat kein gültiges 16×16 Format.");
+          return;
+        }
+        pushHistory();
+        pixels = flat;
+        if (obj.name) nameInput.value = String(obj.name);
+        draw();
+        msg.textContent = "JSON geladen.";
+        setTimeout(()=> msg.textContent="", 1200);
+      } catch(err){
+        alert("Konnte JSON nicht lesen.");
+      } finally {
+        // damit du die gleiche Datei nochmal laden kannst
+        e.target.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  async function loadPalette(){
+    const paletteEl = document.getElementById("palette");
+    const metaEl = document.getElementById("paletteMeta");
+
+    try{
+      const r = await fetch("/farben.txt", { cache:"no-store" });
+      const text = await r.text();
+
+      const lines = text.split(/\r?\n/).map(l => l.trim());
+      const items = [];
+
+      for (let i=0; i<lines.length; i++){
+        const name = lines[i];
+        if (!name) continue;
+
+        let hex = "";
+        for (let j=i+1; j<lines.length; j++){
+          if (lines[j]) { hex = lines[j]; i = j; break; }
+        }
+
+        hex = hex.replace(/^#/, "");
+        if (/^[0-9a-fA-F]{6}$/.test(hex)){
+          items.push({ name, hex: "#" + hex.toLowerCase() });
+        }
+      }
+
+      paletteEl.innerHTML = "";
+      items.forEach(p => {
+        const d = document.createElement("div");
+        d.className = "swatch";
+        d.title = p.name;
+        d.style.background = p.hex;
+        d.addEventListener("click", () => { colorInput.value = p.hex; });
+        paletteEl.appendChild(d);
+      });
+
+      metaEl.textContent = items.length ? `${items.length} Farben geladen.` : "Keine Farben gefunden.";
+    } catch(e){
+      metaEl.textContent = "farben.txt konnte nicht geladen werden (liegt sie in data/farben.txt?)";
+    }
+  }
+
+  async function refreshGallery(){
+    gallerySel.innerHTML = "";
+    const r = await fetch("/api/gallery");
+    const list = await r.json().catch(()=>[]);
+    const opt0 = document.createElement("option");
+    opt0.value = ""; opt0.textContent = "-- wählen --";
+    gallerySel.appendChild(opt0);
+    list.forEach(name=>{
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      gallerySel.appendChild(opt);
+    });
+  }
+
+  btnSaveGallery.addEventListener("click", async ()=>{
+    const name = (nameInput.value || "").trim();
+    if (!name) { alert("Bitte zuerst einen Namen eingeben."); nameInput.focus(); return; }
+    msg.textContent = "Speichere Galerie...";
+    let res = await postJSON("/api/gallery_save", { name, w:SIZE, h:SIZE, pixels });
+    if (!res.ok && res.error === "exists") {
+      if (!confirm(`In der Galerie gibt es schon „${res.name}“. Überschreiben?`)) {
+        msg.textContent = "Nicht gespeichert.";
+        return;
+      }
+      res = await postJSON("/api/gallery_save", { name, w:SIZE, h:SIZE, pixels, overwrite:true });
+    }
+    msg.textContent = res.ok ? `OK: in der Galerie als „${res.name}“ gespeichert` : "Fehler beim Speichern";
+    await refreshGallery();
+    if (res.ok) gallerySel.value = res.name;
+  });
+
+  btnLoadGallery.addEventListener("click", async ()=>{
+    const name = gallerySel.value;
+    if (!name) return;
+    const r = await fetch("/api/gallery_load?name=" + encodeURIComponent(name));
+    const obj = await r.json().catch(()=>null);
+    const flat = normalizePixels(obj);   // Zahlen (ESP) oder "#rrggbb" (codemich)
+    if (!flat || flat.length !== SIZE*SIZE) {
+      alert("Galerie hat falsches Format");
+      return;
+    }
+    pushHistory();
+    pixels = flat;
+    nameInput.value = obj.name || name;
+    draw();
+  });
+
+  btnApplyGallery.addEventListener("click", async ()=>{
+    const name = gallerySel.value;
+    if (!name) return;
+    msg.textContent = "Wende Galerie an...";
+    const res = await postJSON("/api/apply_gallery", { name });
+    msg.textContent = res.ok ? "OK: angezeigt" : "Fehler beim Anwenden";
+  });
+
+  // Uhrzeit an die Matrix geben (für die Uhr im AP-Modus ohne Internet; mit NTP wird sie ignoriert)
+  fetch("/api/time", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ epoch: Math.floor(Date.now() / 1000) })
+  }).catch(()=>{});
+
+  // Wecker/Timer: Banner mit Aus/Schlummern, solange es klingelt
+  async function checkRing(){
+    try{
+      const w = await (await fetch("/api/wecker", { cache:"no-store" })).json();
+      const b = document.getElementById("ringBanner");
+      b.style.display = w.ringing ? "" : "none";
+      document.getElementById("ringTitle").textContent = w.ringing === "timer" ? "Timer abgelaufen!" : "Wecker klingelt!";
+      document.getElementById("ringSnooze").style.display = w.ringing === "alarm" ? "" : "none";
+    }catch{}
+  }
+  document.getElementById("ringOff").addEventListener("click", async () => { await postJSON("/api/wecker/stop", {}); checkRing(); });
+  document.getElementById("ringSnooze").addEventListener("click", async () => { await postJSON("/api/wecker/snooze", {}); checkRing(); });
+  checkRing();
+  setInterval(checkRing, 3000);
+
+  // Init
+  setTool("brush");
+  draw();
+  loadPalette();
+  refreshGallery();
+  updateHistoryButtons();
+})();
+</script>
+</body>
+</html>
