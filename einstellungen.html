@@ -148,6 +148,19 @@
         <div class="meta" style="margin-top:4px">Laufschrift-Text, Wetter-Ort, Playlist und Zeitplan: <a href="/programm.html">Programm</a></div>
       </div>
 
+      <!-- Raumklima: nur Büro-Firmware (DHT22); wird per Skript eingeblendet -->
+      <div id="climateBox" class="checkline" style="display:none; flex-direction:column; align-items:flex-start; gap:4px">
+        <span>Raumklima</span>
+        <div class="meta" id="climateInfo">Lade…</div>
+        <div class="row" style="gap:6px; align-items:center">
+          <span class="meta">Korrektur °C</span>
+          <input id="climateOffset" type="number" step="0.5" min="-10" max="10" style="width:80px">
+          <button id="climateSave" class="ghost">Übernehmen</button>
+          <button id="climateRescan" class="ghost">Sensor neu suchen</button>
+        </div>
+        <div class="meta">Zimmertemperatur und Luftfeuchte vom DHT22. Zeigt die Matrix zu warm an (Eigenwärme von LEDs/ESP32), mit einem Thermometer vergleichen und die Korrektur negativ setzen, z. B. −1,5.</div>
+      </div>
+
       <div id="onlineBox" class="checkline" style="display:none; flex-direction:column; align-items:flex-start; gap:4px">
         <span>Web-Bild</span>
         <div class="meta" id="onlineInfo">Lade…</div>
@@ -386,8 +399,42 @@ document.addEventListener('DOMContentLoaded', loadStorageInfo);
     box.style.display = "flex";
   }).catch(()=>{});
 
+  // Raumklima (nur Büro-Firmware): Modus und Kasten nur, wenn /api/climate existiert
+  const climateBox = document.getElementById("climateBox");
+  const climateInfo = document.getElementById("climateInfo");
+  const climateOffset = document.getElementById("climateOffset");
+  let hasClimate = false;
+  async function loadClimate(first){
+    if (!hasClimate) return;
+    climateBox.style.display = (mode.value === "climate") ? "flex" : "none";
+    if (mode.value !== "climate" && !first) return;
+    try{
+      const c = await (await fetch("/api/climate", { cache:"no-store" })).json();
+      if (first || document.activeElement !== climateOffset) climateOffset.value = c.offset ?? 0;
+      let t;
+      if (c.valid) t = `${c.temp.toFixed(1)} °C (Sensor ${c.raw.toFixed(1)} °C) • ${c.hum.toFixed(0)} % Luftfeuchte • GPIO ${c.pin}`;
+      else if (c.scanning || !c.found) t = "Suche den Sensor …";
+      else t = `Sensor an GPIO ${c.pin}, noch keine Werte`;
+      climateInfo.textContent = t;
+    }catch{ climateInfo.textContent = "Status nicht verfügbar."; }
+  }
+  async function postClimate(o){
+    await fetch("/api/climate", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(o) }).catch(()=>{});
+    loadClimate();
+  }
+  document.getElementById("climateSave").addEventListener("click", () => postClimate({ offset: Number(climateOffset.value) || 0 }));
+  document.getElementById("climateRescan").addEventListener("click", () => postClimate({ rescan: true }));
+  try{
+    hasClimate = (await fetch("/api/climate", { cache:"no-store" })).ok;
+    if (hasClimate) mode.querySelector('option[value="playlist"]').before(new Option("Raumklima", "climate"));
+    if ((await fetch("/api/news", { cache:"no-store" })).ok) mode.querySelector('option[value="playlist"]').before(new Option("IT-News", "news"));
+  }catch{}
+  mode.addEventListener("change", () => loadClimate());
+  setInterval(loadClimate, 5000);
+
   await load();
   loadOnlineStatus();
+  loadClimate(true);
 })();
 </script>
 </body>

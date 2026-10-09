@@ -165,7 +165,6 @@
     <div class="row">
       <button id="aqSave" class="ghost">Speichern</button>
     </div>
-    <p class="meta">Nachts (nach Uhrzeit) wird es dunkler, ein Mond scheint und die Fische schwimmen langsamer.</p>
     <p class="meta" id="aqMsg"></p>
   </section>
 
@@ -186,6 +185,29 @@
       <button id="wShow" class="primary">Wetter anzeigen</button>
     </div>
     <p class="meta" id="wMsg"></p>
+  </section>
+
+  <!-- IT-News (nur Büro-Firmware, wird per Skript eingeblendet) -->
+  <section class="card" id="newsCard" style="display:none">
+    <div class="title">IT-News</div>
+    <p class="meta">Schlagzeilen von heise (Top-News) und golem als Laufschrift, alle 15 Minuten neu. Braucht WLAN mit Internet.</p>
+    <div class="row">
+      <select id="nSource" style="flex:1">
+        <option value="both">heise und golem (abwechselnd)</option>
+        <option value="heise">nur heise</option>
+        <option value="golem">nur golem</option>
+      </select>
+      <label class="meta">Anzahl je Quelle <input id="nCount" type="number" min="1" max="8" style="width:60px"></label>
+    </div>
+    <div class="row">
+      <label class="meta" style="flex:1">Tempo <input id="nSpeed" type="range" min="20" max="120" style="width:100%"></label>
+    </div>
+    <div class="row">
+      <button id="nSave" class="ghost">Speichern + neu laden</button>
+      <button id="nShow" class="primary">News anzeigen</button>
+    </div>
+    <div class="status meta" id="nNow">Lade…</div>
+    <ol class="meta" id="nList" style="margin:6px 0 0 18px; padding:0"></ol>
   </section>
 
   <!-- Zeitplan -->
@@ -517,12 +539,47 @@
     loadStatus();
   });
 
+  // ---------- IT-News ----------
+  // Tempo-Regler: rechts = schneller (Firmware: ms pro Pixel, kleiner = schneller)
+  async function loadNews(first){
+    try{
+      const n = await getJSON("/api/news");
+      if (first){ $("nSource").value = n.source; $("nCount").value = n.count; $("nSpeed").value = 140 - n.speed; }
+      let t = !n.wifi ? "Kein WLAN mit Internet (AP-Modus) – unter „WLAN“ ein Netz eintragen."
+            : n.items.length ? `${n.items.length} Schlagzeilen, abgerufen vor ${Math.round(n.ageS / 60)} min`
+            : "Noch keine Schlagzeilen (werden geholt, sobald der Modus läuft).";
+      if (n.error) t += ` • Fehler: ${n.error}`;
+      $("nNow").textContent = t;
+      const ol = $("nList"); ol.textContent = "";
+      for (const it of n.items){ const li = document.createElement("li"); li.textContent = `${it.src}: ${it.title}`; ol.appendChild(li); }
+    }catch{ $("nNow").textContent = "IT-News nicht verfügbar."; }
+  }
+  $("nSave").addEventListener("click", async () => {
+    $("nNow").textContent = "Speichere…";
+    await postJSON("/api/news", { source: $("nSource").value, count: Number($("nCount").value) || 6,
+                                  speed: 140 - Number($("nSpeed").value), reload: true });
+    setTimeout(loadNews, 4000);
+  });
+  $("nShow").addEventListener("click", async () => {
+    await postJSON("/api/settings", { mode: "news" });
+    $("nNow").textContent = "Modus IT-News eingeschaltet – Schlagzeilen werden geholt…";
+    setTimeout(loadNews, 5000);
+  });
+
   // ---------- Start ----------
   // Uhrzeit an die Matrix geben (für Zeitplan und Uhr ohne Internet)
   fetch("/api/time", { method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ epoch: Math.floor(Date.now() / 1000) }) }).catch(()=>{});
 
   (async () => {
+    // Raumklima und IT-News gibt es nur in der Büro-Firmware
+    if (await fetch("/api/climate", {cache:"no-store"}).then(r => r.ok).catch(() => false)) MODES.push(["climate","Raumklima"]);
+    if (await fetch("/api/news", {cache:"no-store"}).then(r => r.ok).catch(() => false)) {
+      MODES.push(["news","IT-News"]);
+      $("newsCard").style.display = "";
+      loadNews(true);
+      setInterval(loadNews, 20000);
+    }
     galleryNames = await getJSON("/api/gallery").catch(() => []);
     await loadSongs();
     await Promise.all([loadText(), loadPlaylist(), loadSchedule(), loadWeather(), loadWecker(), loadAquarium()]);
